@@ -2,7 +2,7 @@ from django.db import transaction
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseRedirect, HttpResponse
 from .models import Log
-from .forms import UserForm, ProfileForm, AnalyticsForm
+from .forms import MessageForm, UserForm, ProfileForm, AnalyticsForm
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import Http404
@@ -39,7 +39,7 @@ def get_logs(request, status):
 def sync_db(request):
     if request.method == 'POST':
         status = request.POST['status']
-        response = requests.get('http://8199bb70.ngrok.io/rlogs/?status=a')     # get only the active records (only they will have new entries)
+        response = requests.get('https://d3b3-103-37-201-173.ngrok.io/rlogs/?status=a')     # get only the active records (only they will have new entries)
         if response.status_code == 200:
             incoming_logs = response.json()
             for log in incoming_logs:
@@ -76,12 +76,17 @@ def show_logs(request, status):
 def request_detail(request, pk):
     try:
         log = Log.objects.get(pk = pk)
+        if request.method == 'POST':
+            message_form = MessageForm(request.POST)
+            requests.post('https://d3b3-103-37-201-173.ngrok.io/sendmsg/', {'msg': message_form.data['message'], 'request_id': log.server_db_id})
+            return update_status(request, pk, 'w')
         address = request.user.profile.location.strip()
         tokens = address.split(' ')
         source = '+'.join(tokens)
         return render(request, 'console/detail.html', {
             'log': log,
             'source': source,
+            'message_form': MessageForm()
         })
     except ObjectDoesNotExist:
         return render(request, 'console/404.html')
@@ -97,7 +102,7 @@ def update_status(request, pk, status):
     log.status = status
     log.save_log()
 
-    patch_url = "http://8199bb70.ngrok.io/rlogs/?status=" + str(status) + "&id=" + str(log.server_db_id)
+    patch_url = "https://d3b3-103-37-201-173.ngrok.io/rlogs/?status=" + str(status) + "&id=" + str(log.server_db_id)
     response = requests.get(patch_url)
 
     if status == "w":

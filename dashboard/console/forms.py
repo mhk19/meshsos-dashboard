@@ -13,6 +13,9 @@ class ProfileForm(forms.ModelForm):
         model = Profile
         fields = ('service', 'location', 'phone')
 
+class MessageForm(forms.Form):
+    message = forms.CharField(label='Message')
+
 
 YEARS = [x for x in range(2020, 2100)]
 
